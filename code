@@ -1,0 +1,179 @@
+/* To Compile: 
+ javac pa01.java
+ gcc -o pa01 pa01.c
+ g++ -o pa01 pa01.cpp
+ go build pa01.go
+
+ To Execute: java -> java pa01 kX.txt pX.txt
+ or c++ -> ./pa01 kX.txt pX.txt
+ or c -> ./pa01 kX.txt pX.txt
+ or go -> ./pa01 kX.txt pX.txt
+ or python -> python3 pa01.py kX.txt pX.txt
+ where kX.txt is the keytext file
+ and pX.txt is plaintext file
+
+Note: All input files are simple 8 bit ASCII input */ 
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <ctype.h>
+
+int *calculateMatrix(int matrixSize, int **matrix, char *plain, int *result)
+{
+    for (size_t i = 0; i < matrixSize; i++)
+    {
+        for (size_t j = 0; j < matrixSize; j++)
+        {
+            result[j] += (int)(plain[i] - 'a') * matrix[j][i];
+        }
+    }
+
+    for (size_t i = 0; i < matrixSize; i++)
+    {
+        result[i] = (result[i] % 26) + 'a';
+    }
+
+    return result;
+}
+
+char *encrypt(int matrixSize, int **matrix, int plainSize, char *plainText)
+{
+    char *result = calloc(plainSize, sizeof(char));
+    int *temp = calloc(matrixSize, sizeof(int));
+    for (size_t i = 0; i < plainSize; i += matrixSize)
+    {
+        temp = calculateMatrix(matrixSize, matrix, &plainText[i], temp);
+
+        // Reassign to result
+        for (size_t j = 0; j < matrixSize; j++)
+        {
+            result[i + j] = temp[j];
+
+            temp[j] = 0;
+        }
+    }
+
+    // Free Temporary Allocation
+    free(temp);
+
+    return result;
+}
+
+int readMatrixSize(FILE *file)
+{
+    int n;
+    fscanf(file, "%d", &n);
+
+    return n;
+}
+
+int **readMatrix(FILE *file, int n)
+{
+    int **out = (int **)malloc(sizeof(int *) * n);
+
+    for (size_t i = 0; i < n; i++)
+    {
+        out[i] = (int *)malloc(sizeof(int) * n);
+
+        for (size_t j = 0; j < n; j++)
+        {
+            int val;
+            fscanf(file, "%d", &val);
+
+            out[i][j] = val;
+        }
+    }
+
+    return out;
+}
+
+int readPlainText(FILE *file, char *plainText, int matrixSize)
+{
+    int length = 0;
+
+    int c = fgetc(file);
+    do
+    {
+        if (isalpha(c))
+        {
+            plainText[length] = (char)tolower(c);
+            length++;
+        }
+
+        c = fgetc(file);
+    } while (c != EOF);
+
+    int pad = matrixSize - (length % matrixSize);
+    while (pad--)
+    {
+        plainText[length] = 'x';
+        length++;
+    }
+
+    return length;
+}
+
+void printMatrix(int matrixSize, int **matrix)
+{
+    for (size_t i = 0; i < matrixSize; i++)
+    {
+        for (size_t j = 0; j < matrixSize; j++)
+        {
+            printf("\t%d", matrix[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+void printText(int length, char *text)
+{
+    for (size_t i = 0; i < length; i++)
+    {
+        if (i % 80 == 0 && i != 0)
+        {
+            printf("\n");
+        }
+        putc(text[i], stdout);
+    }
+    printf("\n");
+}
+
+int main(int argc, char **argv)
+{
+    // Open File
+    FILE *keyFile = fopen(argv[1], "r");
+    FILE *plainFile = fopen(argv[2], "r");
+
+    // Matrix
+    int matrixSize = readMatrixSize(keyFile);
+    int **matrix = readMatrix(keyFile, matrixSize);
+
+    printf("\nKey matrix:\n");
+    printMatrix(matrixSize, matrix);
+    printf("\n");
+
+    // Plaintext
+    char *plaintText = malloc(sizeof(int) * 10000);
+    int length = readPlainText(plainFile, plaintText, matrixSize);
+
+    printf("Plaintext:\n");
+    printText(length, plaintText);
+    printf("\n");
+
+    // Encrypt
+    char *chiper = encrypt(matrixSize, matrix, length, plaintText);
+
+    printf("Ciphertext:\n");
+    printText(length, chiper);
+
+    // Release Memory and file
+    fclose(keyFile);
+    fclose(plainFile);
+
+    free(plaintText);
+    for (size_t i = 0; i < matrixSize; i++)
+    {
+        free(matrix[i]);
+    }
+}
